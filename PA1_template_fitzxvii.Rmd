@@ -1,0 +1,103 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+author: "Fitz Gerald M. Villegas"
+date: "9/27/2020"
+output: md_document
+---
+1.Loading and Preprocessing the data
+```{r echo = TRUE}
+#Download data from Web
+download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip", destfile = "activity.zip", mode="wb")
+#Unzip Data and and store 
+unzip("activity.zip")
+dataset <- read.csv("activity.csv", header = TRUE)
+head(dataset)
+```
+-> Process/transform the data (if necessary) into a format suitable for your analysis
+```{r echo = TRUE}
+setDate <- transform(dataset, date = as.Date(date))
+str(setDate)
+```
+2. What is mean total number of steps taken per day?
+
+->Ignoring missing values in the dataset.
+```{r echo = TRUE}
+blank <- is.na(dataset$steps)
+setDate$isNA <- blank
+newdata <- setDate[setDate$isNA != 'TRUE',]
+nrow(newdata)
+```
+
+->Calculating the total number of steps taken per day and creating a histogram.
+```{r echo = TRUE}
+dataperday<-aggregate(steps~date,newdata,sum, na.rm = TRUE)
+hist(dataperday$steps, main="Steps Taken per Day", xlab="Total Steps per Day", ylab = "Number of Days", col = "gray")
+```
+
+->Calculating the Mean and Median Values
+```{r echo=TRUE}
+mean <- mean(dataperday$steps)
+cat("Mean for total steps taken per day: ", mean, fill=TRUE)
+median <- median(dataperday$steps)
+cat("Median for total steps taken per day: ", median, fill=TRUE)
+```
+
+3. What is the average daily activity pattern?
+
+-> Making a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+```{r echo = TRUE}
+avgsteps<-aggregate(steps~interval,newdata,sum, na.rm = TRUE)
+plot(x = avgsteps$interval,y = avgsteps$steps,type = "l",xlab = "5 Minute Interval", ylab = "Average Number of Steps",main = "Average Daily Activity Planner")
+```
+
+->Getting the average maximum steps per day in 5-minute interval
+```{r echo = TRUE}
+max_avgsteps <- avgsteps$interval[avgsteps$steps == max(avgsteps$steps)]
+cat("5-min time Interval with maximum average steps taken per day: ", max_avgsteps, fill = TRUE)
+```
+
+4. Imputing missing values
+
+->Calculating the total number of missing values in the dataset
+```{r echo=TRUE}
+blank_count <- sum(!complete.cases(dataset))
+cat("Missing value count for rows: ", blank_count, fill = TRUE)
+```
+
+->Filling in the missing date using mean data for missing values
+```{r echo=TRUE}
+tofilldataset <- dataset
+sapply(unique(dataset$interval), function(x) tofilldataset[!complete.cases(tofilldataset) & (tofilldataset$interval == x),1] <- avgsteps$steps[avgsteps$interval == x])
+```
+
+->Calculating the total number of steps taken per day and creating a histogram.
+```{r echo = TRUE}
+secondsteps <- aggregate(steps~date,tofilldataset,sum)
+hist(secondsteps$steps,main = "Steps per Day", xlab = "Total Steps per Day", ylab = "Number of Days", col = "gray")
+```
+
+->Calculating the Mean and Median Values and Comparing to the previous Mean and Median
+```{r echo = TRUE}
+newmean <- mean(secondsteps$steps)
+cat("Old mean is: ", mean, fill = TRUE)
+cat("Mean total steps taken per day: ", newmean, fill = TRUE)
+
+newmedian <- median(secondsteps$steps)
+cat("Old median is: ", median, fill = TRUE)
+cat("Median total steps taken per day: ", newmedian, fill = TRUE)
+```
+
+5. Are there differences in activity patterns between weekdays and weekends?
+```{r echo = TRUE}
+setDate$weekend <- "weekday"
+setDate$weekend[weekdays(setDate$date) %in% c("Saturday", "Sunday")] <- "weekend"
+setDate$weekend <- as.factor(setDate$weekend)
+thirdstep <- aggregate(steps~interval + weekend,data = setDate,sum, na.rm = TRUE)
+```
+
+->Making a panel plot containing a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). 
+```{r echo = TRUE}
+library(lattice)
+xyplot(steps~interval | weekend,thirdstep,type = "l", layout = c(1,2),xlab = "Interval", ylab = "Number of Steps")
+```
+
